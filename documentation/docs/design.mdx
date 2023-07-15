@@ -1,0 +1,137 @@
+---
+sidebar_position: 6
+---
+
+import Figure from "../src/components/Figure";
+
+
+# System Architecture
+The following contains all architecture details on the ReviewBot Software system. These include the code extension's structural and behavioral details. This document can be edited from [`documentation/docs/design.mdx`](https://github.com/Civic-Interactions-Lab/code-review-chatbot-vscode/edit/main/documentation/docs/design.mdx).
+
+## Extension Architecture
+:::tip Microsoft's Extension Anatomy Documentation
+Go check out Microsoft's [extension anatomy](https://code.visualstudio.com/api/get-started/extension-anatomy) documentation for details on the basic structure and definitions of VSCode Extension written in TypeScript.
+:::
+
+The design pattern employed by the extension is MVC (see [Figure 2](#figure-2)). However, it is worth it to highlight that extension.ts `activate()` registers the view provider `ChatGPTViewProvider` as seen in [Figure 1](#figure-1). The provider makes all of the calls to the ChatGPT library from the `search()` function which also updates the `webview` (see [Figure 3](#figure-3) for more details).  The `ChatGPTAPI` acts as the Model, the HTML content acts as the View (with `main.js` sending messages to the controller), and `ChatGPTViewProvider` as the middleman controller to both the View and the API model. Most of the code lives in `src/extension.ts` file such as the `ChatGPTViewProvider` however, the view logic to send messages to the `ChatGPTViewProvider` is within the `media/main.js` JavaScript file.
+
+```text title="Files"
+src/
+└── extension.ts
+media/
+├── main.js
+└── scripts
+    ├── microlight.min.js
+    ├── showdown.min.js
+    └── tailwind.min.js
+```
+
+<Figure id={"figure-1"} caption={"Figure 1. VSCode Extension Structure"} subcaption={"A map of the current structure of the application highlighting inheritance and usage of javascript classes."}>
+
+```mermaid
+classDiagram
+class activate ~Function~{
+const vscode.WorkspaceConfiguration config = 'chatgpt'
+const ChatGPTViewProvider provider = context.extensionUri
+    commandHandler(command:string)
+}
+
+class AuthInfo ~type~{
+    string? apiKey
+}
+class Settings ~type~{
+ boolean? selectedInsideCodeblock
+  boolean? codeblockWithLanguageId
+   boolean? pasteOnClick
+   boolean? keepConversation
+   number? timeoutLength
+   string? model
+   string? apiUrl
+}
+class `src/extension.ts` {
+const BASE_URL = 'https://api.openai.com/v1'
+activate(context: vscode.ExtensionContext)
+deactivate()
+}
+class vscode
+class ChatGPTAPI
+`src/extension.ts` --> activate
+class ChatGPTViewProvider {
++ChatGPTViewProviderViewType viewType$
+    - vscode.WebviewView? _view
+	- ChatGPTAPI? _chatGPTAPI
+	- any? _conversation
+	- string? _response
+	- string? _prompt
+	- string? _fullPrompt
+	-_currentMessageNumber = 0
+	- Settings _settings
+	- AuthInfo _authInfo
+	constructor(private readonly _extensionUri: vscode.Uri)
+	+setAuthenticationInfo(authInfo: AuthInfo)
+	+setSettings(settings: Settings)
+	+getSettings()
+	-_newAPI()
+	-resolveWebviewView(webviewView: vscode.WebviewView, context: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken)
+	+ async resetConversation() Promise<void>
+	+ async search(prompt?:string) Promise<void>
+	- _getHtmlForWebview(webview: vscode.Webview) string
+}
+ChatGPTViewProvider --|> `vscode.WebviewViewProvider`
+ChatGPTViewProvider ..> ChatGPTAPI
+ChatGPTViewProvider --> Settings
+ChatGPTViewProvider --> AuthInfo
+`vscode.WebviewViewProvider` --> vscode
+activate ..> ChatGPTViewProvider
+ChatGPTViewProvider--`media/main.js`
+```
+
+</Figure>
+
+<Figure id={"figure-2"} caption={"Figure 2. MVC Pattern"} subcaption={"The structure, and how data is passed."}>
+
+```mermaid
+classDiagram
+class `main.js` {
+<< View >>
+}
+class ChatGPTViewProvider {
+<< Controller >>
+-vscode.WebviewView _view?
+-ChatGPTAPI _chatGPTAPI?
+}
+class ChatGPTAPI {
+<< Model >>
+}
+`main.js`<--ChatGPTViewProvider:creates
+ChatGPTViewProvider..>ChatGPTAPI:uses
+ChatGPTViewProvider--`main.js`:updates
+ChatGPTAPI--ChatGPTViewProvider:updates
+note for `main.js` "Registers event listeners for message.<br/> Handles messages sent from the extension to the webview.<br/> Sends messages to ViewProvider"
+note for ChatGPTViewProvider "listens for codeSelected and prompt event messages"
+note for ChatGPTAPI "Sends data to ChatGPT and sends data back to ChatGPTViewProvider"
+```
+
+</Figure>
+
+<Figure id={"figure-3"} caption={"Figure 3. Extension Lifecycle"} >
+
+```mermaid
+sequenceDiagram
+participant e as extension.ts
+participant p as ChatGPTViewProvider
+participant m as main.js
+participant w as vscode.Webview
+participant v as VSCode
+actor u as User
+e->>e: activate()
+activate e
+e->>p:<<creates>>
+deactivate e
+p->>w:<<creates>>
+w->>m:<<loads>>
+m->>w: addEventListener("message",(event)=>{})
+```
+
+</Figure>
+
