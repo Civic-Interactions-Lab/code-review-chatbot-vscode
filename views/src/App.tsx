@@ -4,7 +4,11 @@ import microlight from 'microlight';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
 import './App.css'
-import {TextField} from "@mui/material";
+import {Checkbox, TextField} from "@mui/material";
+
+import * as React from 'react';
+
+
 
 type WebviewEvent = {
     data: {
@@ -63,7 +67,7 @@ function App() {
             simpleLineBreaks: true
         });
         response = fixCodeBlocks(response);
-        let html = converter.makeHtml(response);
+        const html = converter.makeHtml(response);
         const responseElement = document.getElementById('response');
         if (responseElement) {
             responseElement.innerHTML = html;
@@ -112,10 +116,17 @@ function App() {
 
     return (
         <ThemeProvider theme={darkTheme}>
-            {/* This is just a placeholder. You can add more JSX code as per your actual component requirement */}
-            <h1>Code Review Bot</h1>
+            {}
+            <Checkbox/>
+            <Checkbox/>
+            <Checkbox/>
+            <Checkbox/>
+            <Checkbox/>
+            <Checkbox/>
+            <button> Here is a bunch of code</button>
+            <h1>!!! Code reviews are happening </h1>
             <div id="response"></div>
-            <TextField id="prompt-input" label="Ask ChatGPT" onKeyUp={handlePromptInput} variant="outlined"/>
+            <TextField id="prompt-input" label="Ask ChatGPT Hello" onKeyUp={handlePromptInput} variant="outlined"/>
         </ThemeProvider>
   )
 }
