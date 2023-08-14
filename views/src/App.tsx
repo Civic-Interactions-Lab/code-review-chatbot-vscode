@@ -8,8 +8,6 @@ import {Checkbox, TextField} from "@mui/material";
 
 import * as React from 'react';
 
-
-
 type WebviewEvent = {
     data: {
         type: string;
@@ -22,6 +20,7 @@ const darkTheme = createTheme({
         mode: 'dark',
     },
 });
+
 function App() {
     const vscode = (window as any).acquireVsCodeApi();
 
@@ -116,17 +115,18 @@ function App() {
 
     return (
         <ThemeProvider theme={darkTheme}>
-            {}
+            {/* This is just a placeholder. You can add more JSX code as per your actual component requirement */}
             <Checkbox/>
             <Checkbox/>
             <Checkbox/>
             <Checkbox/>
             <Checkbox/>
             <Checkbox/>
+            <h1>Code Review Bot</h1>
             <button> Here is a bunch of code</button>
             <h1>!!! Code reviews are happening </h1>
             <div id="response"></div>
-            <TextField id="prompt-input" label="Ask ChatGPT Hello" onKeyUp={handlePromptInput} variant="outlined"/>
+            <TextField id="prompt-input" label="Ask ChatGPT" onKeyUp={handlePromptInput} variant="outlined"/>
         </ThemeProvider>
   )
 }
