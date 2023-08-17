@@ -1,134 +1,146 @@
-import { useEffect } from 'react';
-import showdown from 'showdown';
-import microlight from 'microlight';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { useEffect } from "react";
+import showdown from "showdown";
+import microlight from "microlight";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 
-import './App.css'
-import {Checkbox, TextField} from "@mui/material";
+import "./App.css";
+import { Checkbox, TextField } from "@mui/material";
 
-import * as React from 'react';
+import * as React from "react";
 
 type WebviewEvent = {
-    data: {
-        type: string;
-        value: string;
-    };
+  data: {
+    type: string;
+    value: string;
+  };
 };
 
 const darkTheme = createTheme({
-    palette: {
-        mode: 'dark',
-    },
+  palette: {
+    mode: "dark",
+  },
 });
 
 function App() {
-    const vscode = (window as any).acquireVsCodeApi();
+  const vscode = (window as any).acquireVsCodeApi();
 
-    let response = '';
+  let response = "";
 
-    useEffect(() => {
-        function handleMessage(event: WebviewEvent) {
-            const message = event.data;
-            switch (message.type) {
-                case 'addResponse':
-                    response = message.value;
-                    setResponse();
-                    break;
-                case 'clearResponse':
-                    response = '';
-                    break;
-                case 'setPrompt':
-                    (document.getElementById('prompt-input') as HTMLInputElement).value = message.value;
-                    break;
-            }
+  useEffect(() => {
+    function handleMessage(event: WebviewEvent) {
+      const message = event.data;
+      switch (message.type) {
+        case "addResponse":
+          response = message.value;
+          setResponse();
+          break;
+        case "clearResponse":
+          response = "";
+          break;
+        case "setPrompt":
+          (document.getElementById("prompt-input") as HTMLInputElement).value =
+            message.value;
+          break;
+      }
+    }
+
+    window.addEventListener("message", handleMessage);
+
+    return () => {
+      window.removeEventListener("message", handleMessage);
+    };
+  }, []);
+
+  const fixCodeBlocks = (input: string) => {
+    const REGEX_CODEBLOCK = new RegExp("```", "g");
+    const matches = input.match(REGEX_CODEBLOCK);
+    const count = matches ? matches.length : 0;
+    return count % 2 === 0 ? input : input.concat("\n```");
+  };
+
+  const setResponse = () => {
+    const converter = new showdown.Converter({
+      omitExtraWLInCodeBlocks: true,
+      simplifiedAutoLink: true,
+      excludeTrailingPunctuationFromURLs: true,
+      literalMidWordUnderscores: true,
+      simpleLineBreaks: true,
+    });
+    response = fixCodeBlocks(response);
+    const html = converter.makeHtml(response);
+    const responseElement = document.getElementById("response");
+    if (responseElement) {
+      responseElement.innerHTML = html;
+
+      const preCodeBlocks = responseElement.querySelectorAll("pre code");
+      preCodeBlocks.forEach((block) => {
+        block.classList.add("p-2", "my-2", "block", "overflow-x-scroll");
+      });
+
+      const codeBlocks = responseElement.querySelectorAll("code");
+      codeBlocks.forEach((codeBlock) => {
+        if (codeBlock.innerText.startsWith("Copy code")) {
+          codeBlock.innerText = codeBlock.innerText.replace("Copy code", "");
         }
 
-        window.addEventListener('message', handleMessage);
+        codeBlock.classList.add(
+          "inline-flex",
+          "max-w-full",
+          "overflow-hidden",
+          "rounded-sm",
+          "cursor-pointer"
+        );
 
-        return () => {
-            window.removeEventListener('message', handleMessage);
-        };
-    }, []);
-
-    const fixCodeBlocks = (input: string) => {
-        const REGEX_CODEBLOCK = new RegExp('```', 'g');
-        const matches = input.match(REGEX_CODEBLOCK);
-        const count = matches ? matches.length : 0;
-        return count % 2 === 0 ? input : input.concat('\n```');
-    };
-
-    const setResponse = () => {
-        const converter = new showdown.Converter({
-            omitExtraWLInCodeBlocks: true,
-            simplifiedAutoLink: true,
-            excludeTrailingPunctuationFromURLs: true,
-            literalMidWordUnderscores: true,
-            simpleLineBreaks: true
+        codeBlock.addEventListener("click", (e) => {
+          e.preventDefault();
+          vscode.postMessage({
+            type: "codeSelected",
+            value: codeBlock.innerText,
+          });
         });
-        response = fixCodeBlocks(response);
-        const html = converter.makeHtml(response);
-        const responseElement = document.getElementById('response');
-        if (responseElement) {
-            responseElement.innerHTML = html;
 
-            const preCodeBlocks = responseElement.querySelectorAll('pre code');
-            preCodeBlocks.forEach((block) => {
-                block.classList.add('p-2', 'my-2', 'block', 'overflow-x-scroll');
-            });
+        const divElement = document.createElement("div");
+        divElement.innerHTML = codeBlock.innerHTML;
+        codeBlock.innerHTML = "";
+        codeBlock.appendChild(divElement);
+        divElement.classList.add("code");
+      });
 
-            const codeBlocks = responseElement.querySelectorAll('code');
-            codeBlocks.forEach((codeBlock) => {
-                if (codeBlock.innerText.startsWith('Copy code')) {
-                    codeBlock.innerText = codeBlock.innerText.replace('Copy code', '');
-                }
+      microlight.reset("code");
+    }
+  };
 
-                codeBlock.classList.add('inline-flex', 'max-w-full', 'overflow-hidden', 'rounded-sm', 'cursor-pointer');
+  const handlePromptInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      vscode.postMessage({
+        type: "prompt",
+        value: (e.target as HTMLInputElement).value,
+      });
+    }
+  };
 
-                codeBlock.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    vscode.postMessage({
-                        type: 'codeSelected',
-                        value: codeBlock.innerText
-                    });
-                });
-
-                const divElement = document.createElement('div');
-                divElement.innerHTML = codeBlock.innerHTML;
-                codeBlock.innerHTML = '';
-                codeBlock.appendChild(divElement);
-                divElement.classList.add('code');
-            });
-
-            microlight.reset('code');
-        }
-    };
-
-    const handlePromptInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            vscode.postMessage({
-                type: 'prompt',
-                value: (e.target as HTMLInputElement).value
-            });
-        }
-    };
-
-
-    return (
-        <ThemeProvider theme={darkTheme}>
-            {/* This is just a placeholder. You can add more JSX code as per your actual component requirement */}
-            <Checkbox/>
-            <Checkbox/>
-            <Checkbox/>
-            <Checkbox/>
-            <Checkbox/>
-            <Checkbox/>
-            <h1>Code Review Bot</h1>
-            <button> Here is a bunch of code</button>
-            <h1>!!! Code reviews are happening </h1>
-            <div id="response"></div>
-            <TextField id="prompt-input" label="Ask ChatGPT" onKeyUp={handlePromptInput} variant="outlined"/>
-        </ThemeProvider>
-  )
+  return (
+    <ThemeProvider theme={darkTheme}>
+      {/* This is just a placeholder. You can add more JSX code as per your actual component requirement */}
+      <Checkbox />
+      <Checkbox />
+      <Checkbox />
+      <Checkbox />
+      <Checkbox />
+      <Checkbox />
+      <Checkbox />
+      <h1>Code Review Bot</h1>
+      <button> Here is a bunch of code</button>
+      <h1>!!! Code reviews are happening </h1>
+      <div id="response"></div>
+      <TextField
+        id="prompt-input"
+        label="Ask ChatGPT"
+        onKeyUp={handlePromptInput}
+        variant="outlined"
+      />
+    </ThemeProvider>
+  );
 }
 
-export default App
+export default App;
